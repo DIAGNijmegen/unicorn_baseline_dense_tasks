@@ -467,7 +467,7 @@ def run_pathology_vision_task(
     if task_type in ["classification", "regression"]:
         feature_extractor = PRISM(model_dir)
     elif task_type in ["detection", "segmentation"]:
-        feature_extractor = Virchow(model_dir, mode="class_token")
+        feature_extractor = Virchow(model_dir, mode="patch_tokens")
 
     # Extract tile or slide features
     feature = extract_features(

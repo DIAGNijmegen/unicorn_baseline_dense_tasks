@@ -10,7 +10,7 @@ import tqdm
 import wholeslidedata as wsd
 from PIL import Image
 
-from unicorn_baseline.io import resolve_image_path, write_json_file
+from unicorn_baseline.io import resolve_image_path, write_json_file, write_json_file_streaming
 from unicorn_baseline.vision.pathology.feature_extraction import extract_features
 from unicorn_baseline.vision.pathology.models import PRISM, Virchow
 from unicorn_baseline.vision.pathology.wsi import (
@@ -294,6 +294,8 @@ def save_feature_to_json(
         output_dict = [{"title": title, "features": feature}]
         output_path = Path("/output")
         output_filename = output_path / "image-neural-representation.json"
+        write_json_file(location=output_filename, content=output_dict)
+        print(f"Feature vector saved to {output_filename}")
 
     else:
         print("Spacing: ", spacing)
@@ -302,59 +304,48 @@ def save_feature_to_json(
         if image_direction is None:
             image_direction = np.identity(len(image_size)).flatten().tolist()
 
-        patches = []
 
         features_np = feature.cpu().numpy()
 
-        for coord, feat in zip(coordinates, features_np):
-
+        def patch_generator():
+            for coord, feat in zip(coordinates, features_np):
             # check if feature is 2D (patch tokens) or 1D (CLS token)
-            if len(feat.shape) == 2:  # 2D: [num_patch_tokens, embedding_dim]
-                patches.extend(
-                    [
-                        {
+                if len(feat.shape) == 2:  # 2D: [num_patch_tokens, embedding_dim]
+                    for token_idx in range(feat.shape[0]):
+                        yield {
                             "coordinates": [
                                 int(coord[0]),
                                 int(coord[1]),
-                                int(token_idx),
-                            ],
+                                int(token_idx)
+                                ],
                             "features": feat[token_idx].tolist(),
                         }
-                        for token_idx in range(feat.shape[0])
-                    ]
-                )
-            else:  # 1D: [embedding_dim]
-                patches.append(
-                    {
+                else:  # 1D: [embedding_dim]
+                    yield {
                         "coordinates": [int(coord[0]), int(coord[1])],
                         "features": feat.tolist(),
                     }
-                )
 
-        output_dict = [
-            {
-                "title": title,
-                "patches": patches,
-                "meta": {
-                    "patch-size": tile_size,
-                    "patch-spacing": [spacing, spacing],
-                    "image-size": image_size,
-                    "image-origin": image_origin,
-                    "image-spacing": [image_spacing, image_spacing],
-                    "image-direction": image_direction,
-                },
-            }
-        ]
+        meta_obj = {
+            "patch-size": tile_size,
+            "patch-spacing": [spacing, spacing],
+            "image-size": image_size,
+            "image-origin": image_origin,
+            "image-spacing": [image_spacing, image_spacing],
+            "image-direction": image_direction,
+        }
 
         output_path = Path("/output")
         output_filename = output_path / "patch-neural-representation.json"
 
-    write_json_file(
-        location=output_filename,
-        content=output_dict,
-    )
+        write_json_file_streaming(
+            location=output_filename,
+            title=title,
+            patches_iterable=patch_generator(),
+            meta=meta_obj,
+        )
 
-    print(f"Feature vector saved to {output_filename}")
+        print(f"Feature vector saved to {output_filename}")
 
 
 def run_pathology_vision_task(

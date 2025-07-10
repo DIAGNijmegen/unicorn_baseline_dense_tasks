@@ -80,6 +80,44 @@ def write_json_file(*, location, content):
         f.write(orjson.dumps(content))
 
 
+def write_json_file_streaming(*, location, title, patches_iterable, meta):
+    """
+    Streams a large JSON file to disk where 'patches' is a big list.
+    """
+    with open(location, "wb") as f:
+        f.write(b'[')  # start of outer list
+        f.write(b'{')
+
+        # "title"
+        f.write(orjson.dumps("title"))
+        f.write(b':')
+        f.write(orjson.dumps(title))
+        f.write(b',')
+
+        # Write "patches" key and start patches array
+        f.write(orjson.dumps("patches"))
+        f.write(b':[')
+
+        first = True
+        for patch in patches_iterable:
+            patch_json = orjson.dumps(sanitize_json_content(patch))
+            if not first:
+                f.write(b',')
+            f.write(patch_json)
+            first = False
+
+        # Close patches array
+        f.write(b'],')
+
+        # Write "meta"
+        f.write(orjson.dumps("meta"))
+        f.write(b':')
+        f.write(orjson.dumps(sanitize_json_content(meta)))
+
+        # Close outer list
+        f.write(b'}]')
+        
+
 def resolve_image_path(*, location: str | Path) -> Path:
     input_files = (
         glob(str(location / "*.tif"))

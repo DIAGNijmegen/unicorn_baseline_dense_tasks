@@ -305,7 +305,7 @@ def save_feature_to_json(
             image_direction = np.identity(len(image_size)).flatten().tolist()
 
 
-        features_np = feature.cpu().numpy()
+        features_np = feature.cpu().numpy().astype(np.float16)
 
         def patch_generator():
             for coord, feat in zip(coordinates, features_np):

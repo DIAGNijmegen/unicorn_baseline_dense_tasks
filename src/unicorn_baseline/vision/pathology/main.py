@@ -305,20 +305,24 @@ def save_feature_to_json(
             image_direction = np.identity(len(image_size)).flatten().tolist()
 
 
-        features_np = feature.cpu().numpy().astype(np.float16)
+        features_np = feature.cpu().numpy().astype(np.float32)
 
         def patch_generator():
             for coord, feat in zip(coordinates, features_np):
             # check if feature is 2D (patch tokens) or 1D (CLS token)
                 if len(feat.shape) == 2:  # 2D: [num_patch_tokens, embedding_dim]
                     for token_idx in range(feat.shape[0]):
+                        token_feat = feat[token_idx]
+                        min_val = token_feat.min()
+                        max_val = token_feat.max()
+                        scale = (max_val - min_val) / 255 if max_val > min_val else 1.0
+                        quantized = ((token_feat - min_val) / scale).clip(0, 255).astype(np.uint8)
+
                         yield {
-                            "coordinates": [
-                                int(coord[0]),
-                                int(coord[1]),
-                                int(token_idx)
-                                ],
-                            "features": feat[token_idx].tolist(),
+                            "coordinates": [int(coord[0]), int(coord[1]), int(token_idx)],
+                            "features": quantized.tolist(),
+                            "min": float(min_val),
+                            "scale": float(scale),
                         }
                 else:  # 1D: [embedding_dim]
                     yield {

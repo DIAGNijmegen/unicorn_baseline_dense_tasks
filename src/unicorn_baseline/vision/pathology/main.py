@@ -307,10 +307,18 @@ def save_feature_to_json(
 
         features_np = feature.cpu().numpy().astype(np.float32)
 
+        first = True
+
         def patch_generator():
+            nonlocal first  # <== this tells Python to use the 'first' from the enclosing scope
             for coord, feat in zip(coordinates, features_np):
-            # check if feature is 2D (patch tokens) or 1D (CLS token)
-                if len(feat.shape) == 2:  # 2D: [num_patch_tokens, embedding_dim]
+                if first:
+                    print("Example feature shape:", feat.shape)
+                    print("Example feature dtype:", feat.dtype)
+                    print("Feature is patch tokens (2D):", len(feat.shape) == 2)
+                    print("Raw memory size (bytes):", feat.nbytes)
+
+                if len(feat.shape) == 2:
                     for token_idx in range(feat.shape[0]):
                         token_feat = feat[token_idx]
                         min_val = token_feat.min()
@@ -318,17 +326,23 @@ def save_feature_to_json(
                         scale = (max_val - min_val) / 255 if max_val > min_val else 1.0
                         quantized = ((token_feat - min_val) / scale).clip(0, 255).astype(np.uint8)
 
+                        if first:
+                            print(f"Token {token_idx}: quantized range: {quantized.min()} - {quantized.max()}")
+                            print(f"Quantized dtype: {quantized.dtype}, Size: {quantized.nbytes} bytes")
+
                         yield {
                             "coordinates": [int(coord[0]), int(coord[1]), int(token_idx)],
                             "features": quantized.tolist(),
-                            #"min": float(min_val),
-                            #"scale": float(scale),
                         }
-                else:  # 1D: [embedding_dim]
+                else:
+                    if first:
+                        print("Using CLS token, feature size:", feat.shape[0], "dtype:", feat.dtype)
                     yield {
                         "coordinates": [int(coord[0]), int(coord[1])],
                         "features": feat.tolist(),
                     }
+
+                first = False
 
         meta_obj = {
             "patch-size": tile_size,
@@ -477,6 +491,7 @@ def run_pathology_vision_task(
     )
 
     if task_type in ["classification", "regression"]:
+        print(f"Extracted feature vector shape: {feature.shape}")
         save_feature_to_json(feature=feature, task_type=task_type, title=image_title)
     elif task_type in ["detection", "segmentation"]:
         tile_size = [

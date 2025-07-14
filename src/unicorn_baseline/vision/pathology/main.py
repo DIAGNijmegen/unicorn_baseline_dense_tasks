@@ -321,8 +321,8 @@ def save_feature_to_json(
                         yield {
                             "coordinates": [int(coord[0]), int(coord[1]), int(token_idx)],
                             "features": quantized.tolist(),
-                            "min": float(min_val),
-                            "scale": float(scale),
+                            #"min": float(min_val),
+                            #"scale": float(scale),
                         }
                 else:  # 1D: [embedding_dim]
                     yield {

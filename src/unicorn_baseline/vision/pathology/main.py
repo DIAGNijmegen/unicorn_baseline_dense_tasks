@@ -364,7 +364,13 @@ def save_feature_to_json(
         )
 
         print(f"Feature vector saved to {output_filename}")
+        from pathlib import Path
 
+        file_path = Path("/output/patch-neural-representation.json")
+        size_bytes = file_path.stat().st_size
+        size_mb = size_bytes / (1024 * 1024)
+
+        print(f"File size: {size_mb:.2f} MB")
 
 def run_pathology_vision_task(
     *,

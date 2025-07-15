@@ -362,9 +362,8 @@ def save_feature_to_json(
             patches_iterable=patch_generator(),
             meta=meta_obj,
         )
-
+        
         print(f"Feature vector saved to {output_filename}")
-        from pathlib import Path
 
         file_path = Path("/output/patch-neural-representation.json")
         size_bytes = file_path.stat().st_size
